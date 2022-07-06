@@ -45,7 +45,7 @@ import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
 
 //@Plugin(name = "Compute Prefix Alignments Incrementally - With Bounded States and Windows", parameterLabels = {"Model", "Event Data" }, returnLabels = { "Replay Result" }, returnTypes = { IncrementalReplayResult.class })
-@Plugin(name = " 03_1 Compute Prefix Alignments Incrementally With Bounds on States and Traces", parameterLabels = {"Model", "Event Data" }, 
+@Plugin(name = " 03_1 Compute Prefix Alignments Incrementally - With Bounds on States and Traces", parameterLabels = {"Model", "Event Data" }, 
 returnLabels = { "Replay Result" }, returnTypes = { IncrementalReplayResult.class },
 help = "Conformance checking for unlimited cases but storing only a limited number of cases in memory.")
 

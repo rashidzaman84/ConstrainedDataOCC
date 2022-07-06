@@ -57,7 +57,7 @@ import weka.core.Instances;
 
 
 //@Plugin(name = "Compute Prefix Alignments Incrementally - With Bounded States and Windows", parameterLabels = {"Model", "Event Data" }, returnLabels = { "Replay Result" }, returnTypes = { IncrementalReplayResult.class })
-@Plugin(name = "05_2 Compute Prefix Alignments Incrementally With Marking Prediction - 10Fold CV", parameterLabels = {"Model", "Event Data", "Path to Model", "Path to Log", "Path to Marking" }, 
+@Plugin(name = "05_2 Compute Prefix Alignments Incrementally - With Marking Prediction - 10Fold CV", parameterLabels = {"Model", "Event Data", "Path to Model", "Path to Log", "Path to Marking" }, 
 returnLabels = { "Petri net" }, returnTypes = { Petrinet.class },
 help = "Conformance checking for unlimited cases but storing only a limited number of cases in memory.")
 
