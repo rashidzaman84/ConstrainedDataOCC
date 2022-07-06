@@ -1,0 +1,39 @@
+<ivy-module version="2.0">
+    <info organisation="prom" module="ConstrainedDataOCC" revision="latest">
+    	<description>
+    		Version VERSION
+    	</description>
+    </info>
+    <configurations>
+   		<conf name="default" extends="lib" />
+   		<conf name="lib" />
+	</configurations>  
+    <dependencies defaultconf="default">
+    	<!-- ProM dependencies. -->
+    	<!-- Please put every ProM dependency on a single line. -->
+    	<!-- ProM framework. -->
+    	<dependency org="prom" name="ProM-Plugins" rev="latest" changing="true" transitive="true" />
+    	<!-- ProM packages. -->
+        <dependency org="prom" name="AcceptingPetriNet" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="BasicUtils" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="EfficientStorage" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="EventStream" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="EvolutionaryTreeMiner" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="Log" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="LPEngine" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="OnlineConformance" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="LpSolve" rev="latest" changing="true" transitive="true" />
+        <dependency org="prom" name="PetriNets" rev="latest" changing="true" transitive="true" />
+        <!-- https://mvnrepository.com/artifact/org.javatuples/javatuples -->
+		<dependency org="org.javatuples" name="javatuples" rev="1.2"/>
+		<dependency org="prom" name="OnlineConformance" rev="latest" changing="true" transitive="true" />
+		<dependency org="com.github.fommil.netlib" name="core" rev="1.0" />
+		<dependency org="com.googlecode.matrix-toolkits-java" name="mtj" rev="1.0.4"/>
+		<dependency org="prom" name="LocalProcessModelDiscovery" rev="latest" changing="true" transitive="true" />
+		<!--<repository url="http://www.promtools.org/prom6/packages/PetriNetSimulator/packages.xml" />-->
+		<dependency org="org.pentaho.pentaho-commons" name="pentaho-package-manager" rev="1.0.11"/>
+		<!-- Thanks for using https://jar-download.com -->
+		
+        
+    </dependencies>
+</ivy-module>
