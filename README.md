@@ -1,13 +1,13 @@
 # Constrained-Data Online Conformance Checking
 
 <p>
-  <a href="[https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.705243/full](https://www.sciencedirect.com/science/article/pii/S0306437923000649)"><img src="http://img.shields.io/badge/Paper-PDF-brightgreen.svg"></a>
+  <a href="https://www.sciencedirect.com/science/article/pii/S0306437923000649"><img src="http://img.shields.io/badge/Paper-PDF-brightgreen.svg"></a>
 
 </p>
 
 Implementation of:
 
-- [Conformance checking of process event streams with constraints on data retention](https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.705243/full). R Zaman, M Hassani, BF van Dongen - Information Systems, 2023
+- [Conformance checking of process event streams with constraints on data retention](https://www.sciencedirect.com/science/article/pii/S0306437923000649). R Zaman, M Hassani, BF van Dongen - Information Systems, 2023
 
 This prototype implementation is related to the Constrained-Data prefix-alignments based Online Conformance Checking (OCC) approaches. The proposed approach delimits the memory utilization in online conformance checking systems through: (i) frugally partially or fully forgetting cases, with or without retaining the state of the case, and (ii) recovering or predicting the previous state of the forgotten trace, respectively, and resuming the conformance computation.  
 
