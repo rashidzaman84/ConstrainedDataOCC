@@ -9,13 +9,13 @@ Implementation of:
 
 - [Conformance checking of process event streams with constraints on data retention](https://www.frontiersin.org/journals/big-data/articles/10.3389/fdata.2021.705243/full). R Zaman, M Hassani, BF van Dongen - Information Systems, 2023
 
+This prototype implementation is related to the Constrained-Data prefix-alignments based Online Conformance Checking (OCC) approaches. The proposed approach delimits the memory utilization in online conformance checking systems through: (i) frugally partially or fully forgetting cases, with or without retaining the state of the case, and (ii) recovering or predicting the previous state of the forgotten trace, respectively, and resuming the conformance computation.  
+
+![](Overview.jpg)
 
 
-![](overview.pdf)
 
-
-
-This prototype implementation is related to the Constrained-Data prefix-alignments based Online Conformance Checking (OCC) approaches. The provided prototype implementation is dependent on the prefix-alignments based [Online Conformance package](chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://link.springer.com/content/pdf/10.1007/s41060-017-0078-6.pdf) which uses the A<sup>*</sup> algorithm for shortest path search based
+The provided prototype implementation is dependent on the prefix-alignments based [Online Conformance package](https://link.springer.com/content/pdf/10.1007/s41060-017-0078-6.pdf) which uses the A<sup>*</sup> algorithm for shortest path search based
 prefix-alignment computation. This parent package requires a Petri net process model, its initial marking, and its final marking. Additionally, our approaches require the following additional input parameters:
 - The Bounded Cases stateful approach requires a suitable case limit n.
 - The bounded Cases and States, which is also a stateful approach, requires a state limit n in addition to a case limit n.
