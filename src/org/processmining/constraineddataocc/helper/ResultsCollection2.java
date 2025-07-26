@@ -23,10 +23,15 @@ public class ResultsCollection2 {
 	public ArrayList<Integer> allFoldsMaxStates;
 	public int fold;
 	public ArrayList<Triplet<Integer, String, Double>> foldsResults;
+	public ArrayList<Long> ATPErecord;
+	public long maxATPE;
+	public ArrayList<Integer> foldStates;
 	
 	public ResultsCollection2() {		
 		this.costRecords = new LinkedHashMap<>();
 		this.allFoldsMaxStates = new ArrayList<>();
+		this.ATPErecord = new ArrayList<>();
+		this.foldStates = new ArrayList<>();
 	}
 	
 	

@@ -55,6 +55,37 @@ public class TimeStampsBasedLogToStreamConverter {
 		//printTripletList(sortedByValue);
 		return sortedByValue;
 	}
+	
+	public static ArrayList<XEvent> sortEventsByDate(XLog log){
+
+		List<XEvent> eventsStream = new ArrayList<>();
+
+		for (XTrace t : log) {
+			for(XEvent e: t) {
+				eventsStream.add((XEvent) e.clone());
+			}
+		}
+		//need to sort the hashmap on date
+		Comparator<XEvent> valueComparator = new Comparator<XEvent>() { 
+			@Override public int compare(XEvent e1, XEvent e2) { 
+				Date v1 = XTimeExtension.instance().extractTimestamp(e1); 
+				Date v2 = XTimeExtension.instance().extractTimestamp(e2); 
+				return v1.compareTo(v2);
+			}
+		};
+		ArrayList<XEvent> entries = new ArrayList<XEvent>(eventsStream);
+		//entries.addAll(eventsStream.);
+		Collections.copy(entries,eventsStream);
+		List<XEvent> listOfEntries = new ArrayList<XEvent>(entries);
+		Collections.sort(listOfEntries, valueComparator);
+		ArrayList<XEvent> sortedByValue = new ArrayList<XEvent>(listOfEntries.size());
+		//System.out.println(sortedByValue.size());
+		for(XEvent entry : listOfEntries){
+			sortedByValue.add(entry);
+		}
+		//printTripletList(sortedByValue);
+		return sortedByValue;
+	}
 
 	public static XLog sortEventLogByCaseArrivalTime(XLog log){
 

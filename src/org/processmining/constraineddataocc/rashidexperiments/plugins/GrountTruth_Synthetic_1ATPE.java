@@ -1,9 +1,11 @@
-package org.processmining.constraineddataocc.plugins;
+package org.processmining.constraineddataocc.rashidexperiments.plugins;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -11,19 +13,22 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
 import org.apache.commons.io.FilenameUtils;
+import org.deckfour.xes.classification.XEventClasses;
+import org.deckfour.xes.extension.std.XConceptExtension;
 import org.deckfour.xes.in.XUniversalParser;
 import org.deckfour.xes.model.XLog;
+import org.deckfour.xes.model.XTrace;
 import org.javatuples.Triplet;
 import org.processmining.constraineddataocc.algorithms.IncrementalReplayer;
 import org.processmining.constraineddataocc.helper.MeanMedianMode;
 import org.processmining.constraineddataocc.helper.PublishResults;
-import org.processmining.constraineddataocc.helper.PublishStates_Temp;
 import org.processmining.constraineddataocc.helper.ResultsCollection2;
 import org.processmining.constraineddataocc.helper.StatesCalculator;
 import org.processmining.constraineddataocc.helper.TimeStampsBasedLogToStreamConverter;
@@ -39,82 +44,23 @@ import org.processmining.models.graphbased.directed.petrinet.Petrinet;
 import org.processmining.models.graphbased.directed.petrinet.PetrinetGraph;
 import org.processmining.models.graphbased.directed.petrinet.elements.Place;
 import org.processmining.models.graphbased.directed.petrinet.elements.Transition;
+import org.processmining.models.semantics.petrinet.EfficientPetrinetSemantics;
 import org.processmining.models.semantics.petrinet.Marking;
+import org.processmining.models.semantics.petrinet.impl.EfficientPetrinetSemanticsImpl;
 import org.processmining.onlineconformance.models.ModelSemanticsPetrinet;
+import org.processmining.onlineconformance.models.Move;
 
 import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
 
 //@Plugin(name = "Compute Prefix Alignments Incrementally - With Bounded States and Windows", parameterLabels = {"Model", "Event Data" }, returnLabels = { "Replay Result" }, returnTypes = { IncrementalReplayResult.class })
-@Plugin(name = "02_1 Compute Prefix Alignments Incrementally - With Bound on Traces", parameterLabels = {"Model", "Event Data" }, 
+@Plugin(name = " A 04_2a Compute Prefix Alignments Incrementally - With Bounded Traces- Ground Truth (Synthetic ATPE)", parameterLabels = {"Model" }, 
 returnLabels = { "Replay Result" }, returnTypes = { IncrementalReplayResult.class },
-help = "Conformance checking for unlimited cases but storing only a limited number of cases in memory.")
+help = "Bounded TRACES, dynamic WINDOWS, COST plus EVENT CHAR. ANALYSIS.")
 
-public class BoundedTraces_0CC {
-	@UITopiaVariant(author = "R.Zaman", email = "r.zaman@tue.nl", affiliation = "Eindhoven University of Technology")
-	@PluginVariant(requiredParameterLabels = { 0, 1})
-
-	public IncrementalReplayResult<String, String, Transition, Marking, ? extends PartialAlignment<String, Transition, Marking>> apply(
-			final UIPluginContext context, final Petrinet net, XLog log) throws IOException {
-
-		Map<Transition, String> modelElementsToLabelMap = new HashMap<>();
-		Map<String, Collection<Transition>> labelsToModelElementsMap = new HashMap<>();
-		TObjectDoubleMap<Transition> modelMoveCosts = new TObjectDoubleHashMap<>();
-		TObjectDoubleMap<String> labelMoveCosts = new TObjectDoubleHashMap<>();
-
-		Marking initialMarking = getInitialMarking(net);
-		Marking finalMarking = getFinalMarking(net);
-		
-		setupLabelMap(net, modelElementsToLabelMap, labelsToModelElementsMap);
-		setupModelMoveCosts(net, modelMoveCosts, labelMoveCosts, labelsToModelElementsMap);
-		IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition> parameters = new IncrementalRevBasedReplayerParametersImpl<>();
-		parameters.setUseMultiThreading(false);
-		parameters.setLabelMoveCosts(labelMoveCosts);
-		parameters.setLabelToModelElementsMap(labelsToModelElementsMap);
-		parameters.setModelMoveCosts(modelMoveCosts);
-		parameters.setModelElementsToLabelMap(modelElementsToLabelMap);
-		parameters.setSearchAlgorithm(IncrementalReplayer.SearchAlgorithm.A_STAR);
-		parameters.setUseSolutionUpperBound(false);
-		parameters.setExperiment(false);
-		/////fixed parameter
-		parameters.setLookBackWindow(0);		//value does not matter as we are not using it.
-		//parameters.setLookBackWindowType(true);  //if set to True then alignments will be reverted on the basis of observed events, not moves/states
-
-		//-----------------------------------------------------PARAMETERS TO SET
-		String logName = "BPIC12";
-		int[] maxCasesToStoreChoices = {50,100,200,300,400,500,1000};
-		String[] evaluationChoices = {"cummulative", "10windows"};
-		String evaluationChoice = evaluationChoices[0];
-		
-		String[] forgettingPolicies = {"shortest-non-conf", "longest non-conf","enriched", "LRU"};
-		parameters.setForgettingCriteria(forgettingPolicies[2]);
-		
-		String[] StoreTypes = {"HashMap", "LinkedHashmap"};
-		parameters.setStoreType(StoreTypes[0]);
-
-		String outputFolderPath = "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Results/N/With End marker/";
-		
-
-		LinkedHashMap<String, ResultsCollection2> globalResults = new LinkedHashMap<>(); //contains the results for all n values
-
-		for(int j=0; j<maxCasesToStoreChoices.length; j++) {      //n size
-
-			parameters.setMaxCasesToStore(maxCasesToStoreChoices[j]);				
-			System.out.println("\t State Size: infinite, Max. Cases: " + maxCasesToStoreChoices[j]);
-
-			ResultsCollection2 resultsCollection2 = applyGeneric(net, initialMarking, finalMarking, log, parameters, evaluationChoice/*, classifierChoice, evaluation, parallelCases, fileName, offlineCCResults*/); 
-
-			//here we record the results for each "n" value
-			globalResults.put("(" + Integer.MAX_VALUE + "/" + maxCasesToStoreChoices[j] + ")", resultsCollection2);
-		}			
-		//PublishResults.writeToFilesCC(globalResults, logName, "", outputFolderPath);
-		PublishStates_Temp.writeToFilesCC(globalResults, logName, "", outputFolderPath);
-		
-		return null;		
-	}
-	
-	@UITopiaVariant(author = "R.Zaman", email = "r.zaman@tue.nl", affiliation = "Eindhoven University of Technology")
-	@PluginVariant(requiredParameterLabels = { 0})
+public class GrountTruth_Synthetic_1ATPE {
+	@UITopiaVariant(author = "S.J. van Zelst", email = "s.j.v.zelst@tue.nl", affiliation = "Eindhoven University of Technology")
+	@PluginVariant(variantLabel = "Compute Prefix Alignments Incrementally", requiredParameterLabels = { 0})
 
 	public IncrementalReplayResult<String, String, Transition, Marking, ? extends PartialAlignment<String, Transition, Marking>> apply(
 			final UIPluginContext context, final Petrinet net) throws IOException {
@@ -138,69 +84,57 @@ public class BoundedTraces_0CC {
 		parameters.setSearchAlgorithm(IncrementalReplayer.SearchAlgorithm.A_STAR);
 		parameters.setUseSolutionUpperBound(false);
 		parameters.setExperiment(false);
-		////fixed parameter
-		parameters.setLookBackWindow(0);   //for bounded traces, this parameters will always be set to 0	
+		/////fixed parameter
+		parameters.setLookBackWindow(Integer.MAX_VALUE);	
+		//parameters.setLookBackWindow(Integer.MAX_VALUE);
 		//parameters.setLookBackWindowType(true);  //if set to True then alignments will be reverted on the basis of observed events, not moves/states
 
-		
-		
 		//-----------------------------------------------------PARAMETERS TO SET
-				
-		String[] logTypes = {"a12", "a22", "a32"};
-		int[] maxCasesToStoreChoices = {5,10,15,20,25,50};
+
 		String[] evaluationChoices = {"cummulative", "10windows"};
-		
-		String[] forgettingPolicies = {"shortest-non-conf", "longest non-conf","enriched", "LRU"};
-		parameters.setForgettingCriteria(forgettingPolicies[2]);
-		
 
-		
-		String logType = logTypes[2];
+		String outputFolderPath = "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Synthetic data/Ground Truth/";
 		String evaluationChoice = evaluationChoices[0];
-		String inputFolderPath = "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Process Models from Eric/Event Logs Repository/" + logType + "/timed logs/";
-		String outputFolderPath = "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Results/N/With End marker/";
-		
-		String[] StoreTypes = {"HashMap", "LinkedHashmap"};
-		parameters.setStoreType(StoreTypes[0]);
-		
+
 		LinkedHashMap<String, ResultsCollection2> globalResults = new LinkedHashMap<>();
-
-		File inputFolder = new File(inputFolderPath);
-		//File newInputFolder = new File(inputFolder + "/timed logs/");
 		
-		for (File file : inputFolder.listFiles()) { 
-			System.out.println(file.getName());
-
-			String fileName = FilenameUtils.getBaseName(file.getName());
-			String fileExtension = FilenameUtils.getExtension(file.getName());
+		File inputFolder = new File("D:/Research Work/latest/Streams/Rashid Prefix Alignment/Process Models from Eric/Event Logs Repository/a12/");
+		
+		for (File logVariant : inputFolder.listFiles()) {  //variant refers to a distinct noise value
 			
-			XLog log = null; 
+			if (!logVariant.isDirectory()) {
+				System.out.print("Variant:" + logVariant.getName());
 
-			if(!fileExtension.equals("xes") /*|| !fileName.endsWith("05_25_50")*/) {
-				System.out.println("error!! not an xes file");
+				XLog variantLog = null;
+				String variantName = FilenameUtils.getBaseName(logVariant.getName());
+				String variantExtension = FilenameUtils.getExtension(logVariant.getName());
+				if(!variantExtension.equals("xes")) {
+					
+					System.out.println(logVariant.getName() + "\t error!! either not an xes file or not a variant file");
+					continue;
+				}
+
+				String variantLogFile = inputFolder + "/" + logVariant.getName();
+
+				try {
+					variantLog = new XUniversalParser().parse(new File(variantLogFile)).iterator().next();  //CHECK THR CORRECTNESS OF THIS??????????????????
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}	
+				
+				ResultsCollection2 resultsCollection2 = applyGeneric(net, initialMarking, finalMarking, variantLog, parameters, evaluationChoice/*, classifierChoice, evaluation, parallelCases, fileName, offlineCCResults*/); 
+
+				//here we record the results for each "n" value
+				globalResults.put("(" + Integer.MAX_VALUE + "/" + Integer.MAX_VALUE + ")", resultsCollection2);
+				
+				//here we publish the results for each log
+				PublishResults.writeToFilesATPE(globalResults, variantName, "", outputFolderPath);
+			} else {
 				continue;
 			}
-
-			try {
-				log = new XUniversalParser().parse(file).iterator().next();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}	
-			
-			for(int j=0; j<maxCasesToStoreChoices.length; j++) {      //n size
-
-				parameters.setMaxCasesToStore(maxCasesToStoreChoices[j]);						
-				System.out.println("\t Feature Size: " + Integer.MAX_VALUE + ", Max. Cases: " + parameters.getMaxCasesToStore());
-				
-				ResultsCollection2 resultsCollection2 = applyGeneric(net, initialMarking, finalMarking, log, parameters, evaluationChoice/*, classifierChoice, evaluation, parallelCases, fileName, offlineCCResults*/); 
-				globalResults.put("(" + Integer.MAX_VALUE + "/" + parameters.getMaxCasesToStore() + ")", resultsCollection2);
-			}
-			
-			PublishResults.writeToFilesCC(globalResults, fileName, "", outputFolderPath );				
 		}
-		
-		return null;
-		
+		return null;		
 	}
 
 	@SuppressWarnings("unchecked")
@@ -214,22 +148,12 @@ public class BoundedTraces_0CC {
 				labelsInPN.put(t, t.getLabel());
 			}
 		}
-		
-		Map<String, PartialAlignment<String, Transition, Marking>> store = null ;
 
-		if(parameters.getStoreType().equals("HashMap")) {
-			store = new HashMap<>();
-		}else if(parameters.getStoreType().equals("LinkedHashmap")) {
-			store = new LinkedHashMap<>();
-		}else {
-			System.out.println("Wrong store choice");
-		}
-
-		//Map<String, PartialAlignment<String, Transition, Marking>> store = new HashMap<>();
+		Map<String, PartialAlignment<String, Transition, Marking>> store = new HashMap<>();
 		IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer = IncrementalReplayer.Factory
-				.construct2(initialMarking, finalMarking, store, modelSemantics, parameters, labelsInPN,
+				.construct(initialMarking, finalMarking, store, modelSemantics, parameters, labelsInPN,
 						IncrementalReplayer.Strategy.REVERT_BASED);
-		return processXLog(log, net, initialMarking, replayer, Integer.MAX_VALUE, parameters.getMaxCasesToStore(), evaluationChoice, parameters.getStoreType());
+		return processXLog(log, net, initialMarking, replayer, Integer.MAX_VALUE, Integer.MAX_VALUE, evaluationChoice);
 
 	}
 
@@ -238,55 +162,57 @@ public class BoundedTraces_0CC {
 	private static <A extends PartialAlignment<String, Transition, Marking>> ResultsCollection2 processXLog(
 			XLog log, Petrinet net, Marking iMarking,
 			IncrementalReplayer<Petrinet, String, Marking, Transition, String, A, ? extends IncrementalReplayerParametersImpl<Petrinet, String, Transition>> replayer,
-					int wLimit, int nLimit, String evaluationChoice, String storeType) throws IOException{
+					int wLimit, int nLimit, String evaluationChoice) throws IOException{
 
 		ArrayList<Triplet<String,String,Date>>	eventLogSortedByDate = TimeStampsBasedLogToStreamConverter.sortEventLogByDate(log);			
 
 		if(evaluationChoice.equals("cummulative")) {
-		
-			ArrayList<Triplet<Integer, String, Double>> universalCostRecords = new ArrayList<>();
-			ArrayList<Integer> universalStateRecords = new ArrayList<>();
 
-			String caseId;
-			String event;
-			//Date eventTimeStamp;	
+			final int runs = 50;
 			
-			for (Triplet<String,String, Date> entry : eventLogSortedByDate) {
+			Map<Integer, Double> elapsedTime = new HashMap<>();
+			
+			for(int i=0; i<=runs; i++) {                //i<runs+1 because we need to discard the first run.
+				
+				System.out.println("\nRun No. " + (i+1));
+				System.out.println("Window, Time Elapsed in Millis, Observed Events,Avg. Time per Event");
+				
+				String caseId;
+				String event;
+				//Date eventTimeStamp;
+				int observedEvents = 0;
+				
+				ArrayList<Triplet<String,String,Date>>	eventLogSortedByDateCopy = new ArrayList<>();	
 
-				caseId = entry.getValue0();
-				event = entry.getValue1();
-
-				PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event, /*(window+1)*/0);  //Prefix Alignment of the current observed event
-
-				java.util.Iterator<Triplet<Integer, String, Double>> iterator = universalCostRecords.iterator();			//recording fitness costs
-				while(iterator.hasNext()) {
-					Triplet<Integer, String, Double> temp = iterator.next();
-					if(temp.getValue0()==/*(window+1)*/ 0 && temp.getValue1().equals(caseId)) {
-						iterator.remove();
-						break;
-					}
-				}			
-				universalCostRecords.add(new Triplet<Integer, String, Double>(/*(window+1)*/0, caseId, partialAlignment.getCost()));
-				//Map<String, A> temp = ((Map<String, A>)replayer.getObject()).size();
-				//System.out.println(((Map<String, A>)replayer.getObject()).size());
-				universalStateRecords.add(StatesCalculator.getNumberOfStatesInMemory(replayer.getDataStore()) + ((Map<String, A>)replayer.getObject()).size()); // replayer.getDataStore() fetch both the Dc and Rc	
-				if(storeType.equals("LinkedHashmap")) {
-					//replayer.getDataStore().remove(caseId);
-					replayer.getDataStore().put(caseId, replayer.getDataStore().remove(caseId));					
+				for (Triplet<String,String, Date> entry : eventLogSortedByDate) {  //creates a clone of the event log with distinct case ids to stress memo
+					eventLogSortedByDateCopy.add(new Triplet<String, String, Date>(entry.getValue0()+i, entry.getValue1(), entry.getValue2()));
 				}
+				System.gc();
+				Instant start = Instant.now();
+				
+				for (Triplet<String,String, Date> entry : eventLogSortedByDateCopy) {
 
-			}	
+					caseId = entry.getValue0();
+					event = entry.getValue1();
+
+					PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event /*(window+1)*/);  //Prefix Alignment of the current observed event
+
+					observedEvents++;
+				}
+				
+				Instant end = Instant.now(); 
+				Duration timeElapsed = Duration.between(start, end);
+				elapsedTime.put(i, ((double)timeElapsed.toMillis()/(double)observedEvents));
+			}
+
+			double sumATPE = 0;
+			for(int j=1; j<elapsedTime.size(); j++) {  //we discard the first run.
+				sumATPE += elapsedTime.get(j);
+			}
 
 			ResultsCollection2 resultsCollection2 = new ResultsCollection2();
 
-			for(Triplet<Integer, String, Double> rec : universalCostRecords) {
-				resultsCollection2.costRecords.put(rec.getValue1(), rec.getValue2());
-			}
-
-			resultsCollection2.maxStates = Collections.max(universalStateRecords);
-			resultsCollection2.caseLimitSize = nLimit;
-			resultsCollection2.featureSize = wLimit;
-			resultsCollection2.foldStates.addAll(universalStateRecords);
+			resultsCollection2.ATPE = sumATPE/(elapsedTime.size()-1);
 
 			return resultsCollection2;
 
@@ -325,7 +251,11 @@ public class BoundedTraces_0CC {
 				caseId = entry.getValue0();
 				event = entry.getValue1();
 
-				PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event, (window+1));  //Prefix Alignment of the current observed event
+				//				if(caseId.equals("173718")) {
+				//					System.out.println("Case found");
+				//				}
+
+				PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event/*, (window+1)*/);  //Prefix Alignment of the current observed event
 
 				if(alignmentsWindowsStates.containsKey(caseId)) {
 					alignmentsWindowsStates.get(caseId).add(StatesCalculator.getNumberOfStates(partialAlignment));
@@ -366,16 +296,80 @@ public class BoundedTraces_0CC {
 
 				if(observedEvents==eventsWindowSize || (window+1 == noOfWindows && observedEvents == remainder)){				
 
-					
-					observedEvents = 0;					
+					//System.out.println("window changed");
+
+					//					allStatesSum.append("\n");
+					//					allStatesSum.append((window+1) + "," + countAllStates(alignmentsWindowsStates) + "," + observedEvents);
+					//					alignmentsWindowsStates.clear();
+					observedEvents = 0;
+
+					//					int noOfObservedCases=0;
+					//					int noOfNonConformantCases=0;
+					//					double nonConformanceCosts=0.0;
+					//
+					//					for(Entry<String, List<Double>> record: replayer.getCompoundCost().entrySet()){
+					//						boolean nonConformant=false;
+					//						noOfObservedCases++;
+					//						for(Double cost : record.getValue()) {
+					//							nonConformanceCosts += cost;
+					//							if(cost>0.0) {
+					//								nonConformant = true;
+					//							}
+					//						}
+					//
+					//						if(nonConformant) {
+					//							noOfNonConformantCases++;
+					//						}
+					//
+					//					}
+					//					CostRecords.add(new Triplet<Integer, Integer, Double>(noOfObservedCases, noOfNonConformantCases, nonConformanceCosts));
+					//					replayer.getCompoundCost().clear();
+
+					/*for(Entry<String, ArrayList<PartialAlignment>> entry_:alignmentsLife.entrySet()) {
+						boolean nonconf = false;
+						StringBuilder stringBuilder = new StringBuilder();
+						stringBuilder.append(entry_.getKey() + " : ");
+						for(PartialAlignment list : entry_.getValue()) {
+							if(list.getCost()>0.0) {
+								nonconf = true;
+							}
+							stringBuilder.append(list + ", ");
+						}
+						if(nonconf) {
+							System.out.println(stringBuilder);
+						}
+
+					}*/
 					window++; 
 
 				}
 
 			}	
 
+			//------------------------------statistics
+
+
+			//			for(Entry<String, ArrayList<PartialAlignment>> entry:alignmentsLife.entrySet()) {
+			//				System.out.print(entry.getKey() + " : ");
+			//				for(PartialAlignment list : entry.getValue()) {
+			//					System.out.print(list + ", ");
+			//				}
+			//				System.out.println();
+			//			}
+
 			writeRecordsToFile(universalCostRecords, wLimit, nLimit);
 
+			//			System.out.println("\n");
+			//			System.out.println(",Non-conformant");
+			//			System.out.println("Window,Cases,Costs");
+			//			int index = 1;
+			//			for(Triplet<Integer, Integer, Double> entry : CostRecords) {
+			//				System.out.println(index + "," + entry.getValue1() + "," + entry.getValue2());
+			//				index++;
+			//			}
+			//			
+			//			System.out.println("\n");
+			//
 			System.out.println(allStatesSum);
 
 			calculateStatesInWindows(universalStateRecords, "Max");
@@ -418,7 +412,15 @@ public class BoundedTraces_0CC {
 
 				System.out.println(j + "," + type1 + "," + type2 + ","  + distinctCases.size() 
 				+ "," + EventsType1.get("A_SUBMITTED") + "," + EventsType1 + "," + EventsType2);
+				/*System.out.println("Type1 events: " + EventsType1);
+				System.out.println("Type2 events: " + EventsType2);
+				System.out.println("No. of distinct cases: " + distinctCases.size());*/
+				//System.out.println();
 			}
+
+
+
+			//System.out.println(eventLogSortedByDate);
 
 
 			return null;
@@ -521,12 +523,86 @@ public class BoundedTraces_0CC {
 		return sum;		
 	}
 
-	
+	//////ARCHIVE
 
+	private boolean isFeasible(String caseId, List<Move<String, Transition>> moves, List<String> trace, Petrinet net,
+			Marking iMarking) {
+		boolean res = true;
+		EfficientPetrinetSemantics semantics = new EfficientPetrinetSemanticsImpl(net);
+		semantics.setState(semantics.convert(iMarking));
+		int i = 0;
+		for (Move<String, Transition> move : moves) {
+			if (move.getTransition() != null) {
+				res &= semantics.isEnabled(move.getTransition());
+				if (!res) {
+					System.out.println("Violation for case " + caseId + ", " + "move " + move.toString() + ", at: "
+							+ semantics.getStateAsMarking().toString());
+				}
+				semantics.directExecuteExecutableTransition(move.getTransition());
+			}
+			if (move.getEventLabel() != null) {
+				//				res &= move.getEventLabel().equals(trace.get(i).toString() + "+complete");
+				res &= move.getEventLabel().equals(trace.get(i).toString());
+				if (!res) {
+					System.out.println("Violation for case " + caseId + " on label part. original: " + trace.toString()
+					+ ", moves: " + moves.toString());
+				}
+				i++;
+			}
+			if (!res)
+				break;
+		}
+		return res;
+	}
+
+
+	private static int calculateDiffWindowRelatedCases(Set<String> parentCasesSet, Set<String> childCasesSet){
+		int score = 0;
+		for (String item: childCasesSet) {
+			if(parentCasesSet.contains(item)) {
+				score++;
+			}
+		}
+		return score;
+	}
+
+	private static Date getWindowTimeStamp(ArrayList<Triplet<String,String,Date>> sortedByValue, String choice) {
+		//LinkedList<Pair<String,String>> listKeys = new LinkedList<Pair<String,String>>(sortedByValue.keySet());
+		if(choice.equals("start")) {
+			//return sortedByValue.get( listKeys.getFirst());
+			return sortedByValue.get(0).getValue2();
+		}else {
+			//return sortedByValue.get( listKeys.getLast());
+			return sortedByValue.get(sortedByValue.size()-1).getValue2();
+		}		
+	}	
+
+	public static <A extends PartialAlignment<String, Transition, Marking>> A processEventUsingReplayer(String caseId,
+			String event,
+			IncrementalReplayer<Petrinet, String, Marking, Transition, String, A, ? extends IncrementalReplayerParametersImpl<Petrinet, String, Transition>> replayer) {
+		return replayer.processEvent(caseId, event);
+	}
+
+	private List<String> toStringList(XTrace trace, XEventClasses classes) {
+		List<String> l = new ArrayList<>(trace.size());
+		for (int i = 0; i < trace.size(); i++) {
+			l.add(i, classes.getByIdentity(XConceptExtension.instance().extractName(trace.get(i))).toString());
+		}
+		return l;
+	}
+
+	private static double calculateCurrentCosts(TObjectDoubleMap<String> costPerTrace) {
+		double totalCost = 0;
+		for (String t : costPerTrace.keySet()) {
+			//totalCost += count.get(t) * costPerTrace.get(t);
+			totalCost += costPerTrace.get(t);
+		}
+		return totalCost;
+	}
 
 	private static void writeRecordsToFile(ArrayList<Triplet<Integer, String, Double>> universalRecords, int w, int n) {
 
-		String outputFilePath = "D:/experiments/results/N/w="+  w + ",n=" + n + ".csv";
+		String outputFilePath = "D:/Research Work/latest/Streams/Rashid Prefix Alignment/fresh/N/w="+  w + ",n=" + n + ".csv";
 		File file = new File(outputFilePath);	
 		BufferedWriter bf = null;
 		boolean first = true;
@@ -588,5 +664,131 @@ public class BoundedTraces_0CC {
 		}
 	}
 
-	
+	private static void publishResults(LinkedHashMap<String, ResultsCollection2> globalResults, String fileName, String classifierChoice, String outputFolderPath) {
+
+		//-------------- CC information
+
+		StringBuilder stringBuilderHeader = new StringBuilder();
+		stringBuilderHeader.append("Case,");
+
+		for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+			stringBuilderHeader.append(entryOuter.getKey() + ",");
+		}		
+
+		StringBuilder stringBuilderCosts = new StringBuilder();
+
+		boolean first = true;
+
+		for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+			if(first) {
+				for(Entry<String, Double> entryInner : entryOuter.getValue().costRecords.entrySet()) {
+					String caseId = entryInner.getKey();
+					stringBuilderCosts.append(caseId + ",");				
+
+					for(Entry<String, ResultsCollection2> records : globalResults.entrySet()) {
+						stringBuilderCosts.append(records.getValue().costRecords.get(caseId) + ",");						
+					}
+					//stringBuilderCosts.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
+					//stringBuilderCosts.append(entryOuter.getValue().sumOfEternalPrematureCases);
+					stringBuilderCosts.append("\n");
+				}
+				first=false;				
+			}			
+		}	
+
+		String outputFilePath = outputFolderPath +  classifierChoice + "_" + fileName + "_CC.csv";
+		File file = new File(outputFilePath);
+
+		BufferedWriter bf = null;
+
+		if(file.exists() && !file.isDirectory()){
+			try {
+				bf = new BufferedWriter(new FileWriter(file, true));
+				bf.newLine();
+				bf.write(stringBuilderHeader.toString());
+				bf.write(stringBuilderCosts.toString());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}else {
+			try {
+				bf = new BufferedWriter(new FileWriter(file));
+				bf.write(stringBuilderHeader.toString());
+				bf.newLine();
+				bf.write(stringBuilderCosts.toString());
+
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		try {			
+			bf.flush();
+			bf.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		//-------------- States information
+
+		StringBuilder stringBuilderATPE = new StringBuilder();
+		//System.out.println(" W and N combination, Max. states, Forgotten Premature, Forgotten Eternal");
+
+		for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+			stringBuilderATPE.append(entryOuter.getKey() + ",");
+		}
+
+		stringBuilderATPE.append("\n");
+
+		for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+			stringBuilderATPE.append(entryOuter.getValue().maxStates + ",");
+		}
+
+		System.out.println(stringBuilderATPE.toString());	
+
+		outputFilePath = outputFolderPath +  classifierChoice + "_" + fileName + "_States.csv";
+		file = new File(outputFilePath);
+		BufferedWriter bf2 = null;
+
+		try {	
+			bf2 = new BufferedWriter(new FileWriter(file, true));
+			bf2.write(stringBuilderATPE.toString());
+			bf2.flush();
+			bf2.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		//-------------- additional information
+
+		StringBuilder stringBuilderCasesMeta = new StringBuilder();
+		//System.out.println(" W and N combination, Max. states, Forgotten Premature, Forgotten Eternal");
+		stringBuilderCasesMeta.append("W and N combination, Forgotten Premature, Forgotten Eternal");
+		stringBuilderCasesMeta.append("\n");
+		for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+			stringBuilderCasesMeta.append(entryOuter.getKey() + ",");
+			stringBuilderCasesMeta.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
+			stringBuilderCasesMeta.append(entryOuter.getValue().sumOfEternalPrematureCases + "\n");
+		}
+
+		System.out.println(stringBuilderCasesMeta.toString());	
+
+		outputFilePath = outputFolderPath +  classifierChoice + "_" + fileName + "_meta.csv";
+		file = new File(outputFilePath);
+		BufferedWriter bf3 = null;
+
+		try {	
+			bf3 = new BufferedWriter(new FileWriter(file, true));
+			bf3.write(stringBuilderCasesMeta.toString());
+			bf3.flush();
+			bf3.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 }

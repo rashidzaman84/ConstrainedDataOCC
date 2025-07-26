@@ -56,6 +56,10 @@ public class IncrementalRevBasedReplayerImpl<M, C, S, T, L, A extends PartialAli
 		this.compoundCost = new HashMap<>();
 //		this.eventsCategorisation = new HashMap<>();
 	}
+	
+	public Object getObject() {
+		return null;
+	}
 
 	public Map<C, A> getDataStore() {
 		return dataStore;

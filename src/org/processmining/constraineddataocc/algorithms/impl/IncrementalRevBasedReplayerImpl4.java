@@ -55,6 +55,10 @@ public class IncrementalRevBasedReplayerImpl4<M, C, S, T, L, A extends PartialAl
 		//this.markingPlusCost = new HashMap<>();
 	}
 
+	public Object getObject() {
+		return null;
+	}
+	
 	public Map<C, A> getDataStore() {
 		return dataStore;
 	}

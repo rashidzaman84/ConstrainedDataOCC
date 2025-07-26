@@ -44,7 +44,7 @@ public class IncrementalRevBasedReplayerImpl2<M, C, S, T, L, A extends PartialAl
 	private final Map<C, List<Double>> compoundCost;
 	private final Map<String, ArrayList<Triplet<String, Integer, Integer>>> eventsCategorisation;
 	//private final Map<C, State<S, L, T>> markingPlusCost;
-	private final Map<C, A> markingPlusCost;
+	public final Map<C, A> markingPlusCost;
 	//public  int counter=0;
 
 
@@ -61,13 +61,17 @@ public class IncrementalRevBasedReplayerImpl2<M, C, S, T, L, A extends PartialAl
 		this.eventsCategorisation = new HashMap<>();
 		this.markingPlusCost = new HashMap<>();
 	}
+	
+	public Object getObject() {
+		return markingPlusCost;
+	}
 
 	public Map<C, A> getDataStore() {  //modified method
-		Map<C, A> temp = new HashMap<>();
-		temp.putAll(dataStore); //System.out.print(dataStore.size());
-		temp.putAll(markingPlusCost); //System.out.print(" + " + markingPlusCost.size());
-		return temp;
-		//return dataStore;
+//		Map<C, A> temp = new HashMap<>();
+//		temp.putAll(dataStore); //System.out.print(dataStore.size());
+//		temp.putAll(markingPlusCost); //System.out.print(" + " + markingPlusCost.size());
+//		return temp;
+		return dataStore;
 	}
 	
 	public Map<C, List<Double>> getCompoundCost() {
@@ -111,7 +115,14 @@ public class IncrementalRevBasedReplayerImpl2<M, C, S, T, L, A extends PartialAl
 		if (previousAlignment == null) {
 			if(dataStore.size() >= parameters.getMaxCasesToStore()) {
 				//System.out.println(forgetCase());
-				forgetCase_();
+				if(parameters.getForgettingCriteria().equals("enriched")) {
+					forgetCase_();
+				}else if(parameters.getForgettingCriteria().equals("LRU")) {
+					partiallyForgetTrace(forgetFirstCase());
+				}else {
+					System.out.println("unknown store option");
+				}
+				
 			}
 			previousAlignment = markingPlusCost.remove(c);
 			//PartialAlignment.State<S,L,T> st = previousAlignment.getState();
@@ -353,7 +364,10 @@ public class IncrementalRevBasedReplayerImpl2<M, C, S, T, L, A extends PartialAl
 	private boolean freshCase(A alignment) {  //added method
 		if(alignment.getCost()==0.0 && alignment.projectOnLabels().size()==1 && 
 				(alignment.getState().getParentState()==null || !(alignment.getState().getParentState() instanceof NullParentState))) {
-			//System.out.println(alignment);
+//			if(alignment.size() > 1) {
+//				System.out.println(alignment);
+//			}
+//			
 			return true;
 		}else {
 			return false;
@@ -387,5 +401,18 @@ public class IncrementalRevBasedReplayerImpl2<M, C, S, T, L, A extends PartialAl
 				construct(partialAlignment.getState().getStateInModel(), 0, 
 						Move.Factory.construct(null,null , partialAlignment.getCost())))); //we store the residual cost
 		
+	}
+	
+	private C forgetFirstCase() {
+		int count = 1;
+		 
+        for (Entry<C, A> entry : dataStore.entrySet()) {
+            if (count == 1) {	              
+                return entry.getKey();
+            }
+            count++;
+        }
+        System.out.println("I am returning a null as a case to be forgotten in LRU option");
+        return null;
 	}
 }

@@ -316,6 +316,455 @@ public class WekaDataSetsCreation implements Serializable {
 //			sum += trace.size();
 //		}
 		//Instances datasetMarkingClone = new Instances(datasetMarking);
+		//dummyTestSet(datasetMarking, testsetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/" , 0, "none");
+		
+		boolean weighted = false;
+		if(weighted) {
+			HashMap<String, Instance> mapping = new HashMap<>();
+			HashMap<String, Integer> instanceCount = new HashMap<>();
+			
+			for(Instance instance : instances) {
+				//System.out.println(instance.toString());
+				if(instanceCount.containsKey(instance.toString())) {
+					instanceCount.put(instance.toString(), instanceCount.get(instance.toString())+1);
+				}else {
+					instanceCount.put(instance.toString(), 1);
+					mapping.put(instance.toString(), (Instance)instance.copy());
+				}
+			}
+			ArrayList<Instance> weightedInstances = new ArrayList<>();
+			//double totalWeight = 0;
+			for(Entry<String, Integer> entry : instanceCount.entrySet()) {
+				
+				mapping.get(entry.getKey()).setWeight(entry.getValue());
+				weightedInstances.add(mapping.get(entry.getKey()));
+				//totalWeight += entry.getValue();
+			}
+			datasetMarking.addAll(weightedInstances);
+			//System.out.println(totalWeight);
+			
+		}else {
+			datasetMarking.addAll(instances);
+		}
+		
+		datasetMarking.setClassIndex(datasetMarking.numAttributes()-1);
+		
+		try {
+			classifier.buildClassifier(datasetMarking);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//dummyTestSet(datasetMarking, testsetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/" , 0, "none");
+		//saveDataSet(datasetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/new/" , 0, "trainingset");
+		//datasetMarking.removeAll(instances);
+		return classifier;		
+		
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <A extends PartialAlignment<String, Transition, Marking>> Classifier trainClassifier2(
+			final PluginContext context, XLog log, Petrinet net, Marking iMarking,
+			int numOfFeatures, Boolean endMarkerEnabled, ArrayList<String> markingClasses_, 
+			IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, 
+			IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer) throws IOException{
+
+
+//		IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, 
+//		IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer = getReplayer(context, net);
+		
+		replayer.getDataStore().clear();
+
+		XLogInfo logInfo = XLogInfoFactory.createLogInfo(log, new XEventNameClassifier());
+		ArrayList<XEventClass> eventClasses = sortEventClassesByOccurrence(logInfo.getEventClasses());
+
+		ArrayList<String> eventLabels = new ArrayList<>();
+		for(XEventClass eventClass : eventClasses) {
+			eventLabels.add(eventClass.getId());
+		}
+		
+		Collections.sort(eventLabels);
+
+		
+		ArrayList<String> markingClasses = new ArrayList<>();	
+		ArrayList<Instance> instances = new ArrayList<>();
+		HashMap<Pair<String, Marking>, Integer> shortInstances = new HashMap<>();
+
+		for(XTrace trace : log) {
+						
+			for(int x=0; x<trace.size()-numOfFeatures;x++) {					
+
+				double[] valuesMarking = new double[numOfFeatures+1];
+				//double[] valuesCost = new double[datasetMarking.numAttributes()];
+				int index=0;
+				for(int y=x+1; y<=(numOfFeatures+x) ; y++) {
+					if(y<trace.size()) {
+						String label = XConceptExtension.instance().extractName(trace.get(y));
+						valuesMarking[index] = eventLabels.indexOf(label);
+						//valuesCost[index] = datasetMarking.attribute(0).indexOfValue(label);
+						index++;
+					}else {
+						//							markingTrainingSetBody.append("?,");
+						//							costTrainingSetBody.append("?,");
+						System.out.println("I am having problem with number of attributes");
+					}
+				}
+				
+				for(int k=0; k<=x; k++) {
+					if(k<trace.size()) {
+						String caseId = XConceptExtension.instance().extractName(trace);
+						String event = XConceptExtension.instance().extractName(trace.get(k));
+						PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+						if(k==x) {
+							String toString = null;
+							Marking marking = partialAlignment.getState().getStateInModel(); 
+							toString = "\"" + marking.toString() + "\"";
+							
+							classLabelsMapping.put(toString, marking);
+							
+							if(markingClasses.contains(toString)) {
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}else {
+								markingClasses.add(toString);
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}
+
+							
+							//valuesCost[datasetMarking.numAttributes()-1] = partialAlignment.getCost();
+						}
+					}	 					
+				}
+				Instance instanceMarking = new DenseInstance(1.0, valuesMarking);
+				//Instance instanceCost = new DenseInstance(1.0, valuesCost);
+				instances.add(instanceMarking);
+				//datasetCost.add(instanceCost);
+				replayer.getDataStore().clear();
+			}
+						
+		
+		}
+		
+		if(endMarkerEnabled) {
+			ArrayList<String> caseEndingEvents = getCaseEndingEvents(net);
+			
+			for(XTrace trace : log) {
+				//here we make less than feature size instances
+				int x;
+				if(trace.size() > numOfFeatures) {
+					x = trace.size()-numOfFeatures+1;
+				}else if (trace.size() <= numOfFeatures && caseEndingEvents.contains(XConceptExtension.instance().extractName(trace.get(trace.size()-1)))) {
+					x = 0;
+				}else {
+					continue;
+				}
+				//int x= trace.size() > numOfFeatures ? trace.size()-numOfFeatures+1 : 0;
+				for(; x<trace.size(); x++) {
+					String instance = "";
+					Marking marking = new Marking();
+					for(int y=x; y<trace.size() ; y++) {
+						if(y<trace.size()-1) {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y)) + ",";
+						}else {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y));
+						}
+						
+					}
+					
+					for(int k=0; k<x; k++) {
+						if(k<trace.size()) {
+							String caseId = XConceptExtension.instance().extractName(trace);
+							String event = XConceptExtension.instance().extractName(trace.get(k));
+							PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+							if(k==x-1) {
+								
+								marking = partialAlignment.getState().getStateInModel();
+							}
+						}	 					
+					}
+					
+					Pair<String, Marking> shortInstance = Pair.createPair(instance, marking);
+					if(shortInstances.containsKey(shortInstance)) {
+						shortInstances.put(shortInstance, shortInstances.get(shortInstance)+1);
+					}else {
+						shortInstances.put(shortInstance, 1);
+					}
+					replayer.getDataStore().clear();
+				}
+			}
+			
+			ArrayList<String> closedRelations = new ArrayList();
+			
+			//now we refine the short instances on the basis of frequency
+			for(Entry<Pair<String, Marking>, Integer> recOuter : shortInstances.entrySet()) {
+				
+				if(closedRelations.contains(recOuter.getKey().getFirst())){
+					continue;
+				}
+				
+				for(Entry<Pair<String, Marking>, Integer> recInner : shortInstances.entrySet()) {
+					if(recInner.getKey().getFirst().equals(recOuter.getKey().getFirst())) {
+						if(recInner.getValue() > recOuter.getValue()){
+							shortInstanceMarking.put(recInner.getKey().getFirst(), recInner.getKey().getSecond());
+						}else {
+							shortInstanceMarking.put(recOuter.getKey().getFirst(), recOuter.getKey().getSecond());
+						}					
+					}
+				}
+				closedRelations.add(recOuter.getKey().getFirst());
+			}
+			
+			System.out.println(shortInstanceMarking);
+		}
+		
+		//create datasets		
+		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+
+		for(int i=1; i<=numOfFeatures; i++) {
+			attributes.add(new Attribute("event"+i,eventLabels)); 			
+		}
+
+		ArrayList<Attribute> attributesMarking = new ArrayList<Attribute>();
+		attributesMarking.addAll(attributes);
+		attributesMarking.add(new Attribute("class", markingClasses));
+		datasetMarking = new Instances("Train-dataset-marking", attributesMarking, 0);
+
+		attributes.add(new Attribute("class"));
+
+		//datasetCost = new Instances("Train-dataset-cost", attributes, 0);
+
+		testsetMarking = new Instances("Test-dataset-marking", attributesMarking, 0);
+		//testsetCost = new Instances("Test-dataset-cost", attributes, 0);
+//		int sum = 0;
+//		for(XTrace trace : log) {
+//			sum += trace.size();
+//		}
+		//Instances datasetMarkingClone = new Instances(datasetMarking);
+		//dummyTestSet(datasetMarking, testsetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/" , 0, "none");
+		
+		boolean weighted = false;
+		if(weighted) {
+			HashMap<String, Instance> mapping = new HashMap<>();
+			HashMap<String, Integer> instanceCount = new HashMap<>();
+			
+			for(Instance instance : instances) {
+				//System.out.println(instance.toString());
+				if(instanceCount.containsKey(instance.toString())) {
+					instanceCount.put(instance.toString(), instanceCount.get(instance.toString())+1);
+				}else {
+					instanceCount.put(instance.toString(), 1);
+					mapping.put(instance.toString(), (Instance)instance.copy());
+				}
+			}
+			ArrayList<Instance> weightedInstances = new ArrayList<>();
+			//double totalWeight = 0;
+			for(Entry<String, Integer> entry : instanceCount.entrySet()) {
+				
+				mapping.get(entry.getKey()).setWeight(entry.getValue());
+				weightedInstances.add(mapping.get(entry.getKey()));
+				//totalWeight += entry.getValue();
+			}
+			datasetMarking.addAll(weightedInstances);
+			//System.out.println(totalWeight);
+			
+		}else {
+			datasetMarking.addAll(instances);
+		}
+		
+		datasetMarking.setClassIndex(datasetMarking.numAttributes()-1);
+		
+		try {
+			classifier.buildClassifier(datasetMarking);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//dummyTestSet(datasetMarking, testsetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/" , 0, "none");
+		saveDataSet(datasetMarking, numOfFeatures, 1000000, "D:/Research Work/latest/Streams/Rashid Prefix Alignment/Information Systems/Class balancing/BPIC12 Training set/new/" , 0, "testset_populated");
+		//datasetMarking.removeAll(instances);
+		return classifier;		
+		
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <A extends PartialAlignment<String, Transition, Marking>> Classifier trainClassifier(
+			final PluginContext context, XLog log, Petrinet net, Marking iMarking,
+			int numOfFeatures, Boolean endMarkerEnabled, ArrayList<String> markingClasses_, 
+			IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, 
+			IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer, String relation) throws IOException{
+
+
+
+		if(relation.equals("parent")) {
+			return trainClassifier(context, log, net, iMarking, numOfFeatures, endMarkerEnabled, markingClasses_, replayer);
+		}else if (!relation.equals("reachable")) {
+			System.out.println("Some unkonow marking selection");
+			return null;
+		}else {		
+		
+		replayer.getDataStore().clear();
+
+		XLogInfo logInfo = XLogInfoFactory.createLogInfo(log, new XEventNameClassifier());
+		ArrayList<XEventClass> eventClasses = sortEventClassesByOccurrence(logInfo.getEventClasses());
+
+		ArrayList<String> eventLabels = new ArrayList<>();
+		for(XEventClass eventClass : eventClasses) {
+			eventLabels.add(eventClass.getId());
+		}
+		
+		Collections.sort(eventLabels);
+
+		
+		ArrayList<String> markingClasses = new ArrayList<>();	
+		ArrayList<Instance> instances = new ArrayList<>();
+		HashMap<Pair<String, Marking>, Integer> shortInstances = new HashMap<>();
+
+		for(XTrace trace : log) {
+						
+			for(int x=0; x<trace.size()-numOfFeatures;x++) {					
+
+				double[] valuesMarking = new double[numOfFeatures+1];
+				//double[] valuesCost = new double[datasetMarking.numAttributes()];
+				int index=0;
+				for(int y=x+1; y<=(numOfFeatures+x) ; y++) {
+					if(y<trace.size()) {
+						String label = XConceptExtension.instance().extractName(trace.get(y));
+						valuesMarking[index] = eventLabels.indexOf(label);
+						//valuesCost[index] = datasetMarking.attribute(0).indexOfValue(label);
+						index++;
+					}else {
+						//							markingTrainingSetBody.append("?,");
+						//							costTrainingSetBody.append("?,");
+						System.out.println("I am having problem with number of attributes");
+					}
+				}
+				
+				for(int k=0; k<=(numOfFeatures+x); k++) {
+					if(k<trace.size()) {
+						String caseId = XConceptExtension.instance().extractName(trace);
+						String event = XConceptExtension.instance().extractName(trace.get(k));
+						PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+						if(k==(numOfFeatures+x)) {
+							String toString = null;
+							Marking marking = partialAlignment.getState().getStateInModel(); 
+							toString = "\"" + marking.toString() + "\"";
+							
+							classLabelsMapping.put(toString, marking);
+							
+							if(markingClasses.contains(toString)) {
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}else {
+								markingClasses.add(toString);
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}
+
+							
+							//valuesCost[datasetMarking.numAttributes()-1] = partialAlignment.getCost();
+						}
+					}	 					
+				}
+				Instance instanceMarking = new DenseInstance(1.0, valuesMarking);
+				//Instance instanceCost = new DenseInstance(1.0, valuesCost);
+				instances.add(instanceMarking);
+				//datasetCost.add(instanceCost);
+				replayer.getDataStore().clear();
+			}
+						
+		
+		}
+		
+		if(endMarkerEnabled) {
+			ArrayList<String> caseEndingEvents = getCaseEndingEvents(net);
+			
+			for(XTrace trace : log) {
+				//here we make less than feature size instances
+				int x;
+				if(trace.size() > numOfFeatures) {
+					x = trace.size()-numOfFeatures+1;
+				}else if (trace.size() <= numOfFeatures && caseEndingEvents.contains(XConceptExtension.instance().extractName(trace.get(trace.size()-1)))) {
+					x = 0;
+				}else {
+					continue;
+				}
+				//int x= trace.size() > numOfFeatures ? trace.size()-numOfFeatures+1 : 0;
+				for(; x<trace.size(); x++) {
+					String instance = "";
+					Marking marking = new Marking();
+					for(int y=x; y<trace.size() ; y++) {
+						if(y<trace.size()-1) {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y)) + ",";
+						}else {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y));
+						}
+						
+					}
+					
+					for(int k=0; k<trace.size(); k++) {
+						
+						String caseId = XConceptExtension.instance().extractName(trace);
+						String event = XConceptExtension.instance().extractName(trace.get(k));
+						PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+						if(k==trace.size()-1) {	
+							marking = partialAlignment.getState().getStateInModel();
+						}						 					
+					}
+					
+					Pair<String, Marking> shortInstance = Pair.createPair(instance, marking);
+					if(shortInstances.containsKey(shortInstance)) {
+						shortInstances.put(shortInstance, shortInstances.get(shortInstance)+1);
+					}else {
+						shortInstances.put(shortInstance, 1);
+					}
+					replayer.getDataStore().clear();
+				}
+			}
+			
+			ArrayList<String> closedRelations = new ArrayList();
+			
+			//now we refine the short instances on the basis of frequency
+			for(Entry<Pair<String, Marking>, Integer> recOuter : shortInstances.entrySet()) {
+				
+				if(closedRelations.contains(recOuter.getKey().getFirst())){
+					continue;
+				}
+				
+				for(Entry<Pair<String, Marking>, Integer> recInner : shortInstances.entrySet()) {
+					if(recInner.getKey().getFirst().equals(recOuter.getKey().getFirst())) {
+						if(recInner.getValue() > recOuter.getValue()){
+							shortInstanceMarking.put(recInner.getKey().getFirst(), recInner.getKey().getSecond());
+						}else {
+							shortInstanceMarking.put(recOuter.getKey().getFirst(), recOuter.getKey().getSecond());
+						}					
+					}
+				}
+				closedRelations.add(recOuter.getKey().getFirst());
+			}
+			
+			System.out.println(shortInstanceMarking);
+		}
+		
+		//create datasets		
+		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+
+		for(int i=1; i<=numOfFeatures; i++) {
+			attributes.add(new Attribute("event"+i,eventLabels)); 			
+		}
+
+		ArrayList<Attribute> attributesMarking = new ArrayList<Attribute>();
+		attributesMarking.addAll(attributes);
+		attributesMarking.add(new Attribute("class", markingClasses));
+		datasetMarking = new Instances("Train-dataset-marking", attributesMarking, 0);
+
+		attributes.add(new Attribute("class"));
+
+		//datasetCost = new Instances("Train-dataset-cost", attributes, 0);
+
+		testsetMarking = new Instances("Test-dataset-marking", attributesMarking, 0);
+		//testsetCost = new Instances("Test-dataset-cost", attributes, 0);
+//		int sum = 0;
+//		for(XTrace trace : log) {
+//			sum += trace.size();
+//		}
+		//Instances datasetMarkingClone = new Instances(datasetMarking);
 		boolean weighted = true;
 		if(weighted) {
 			HashMap<String, Instance> mapping = new HashMap<>();
@@ -355,8 +804,233 @@ public class WekaDataSetsCreation implements Serializable {
 		}
 		
 		//datasetMarking.removeAll(instances);
-		return classifier;
+		return classifier;		
+		}
+		
+		
+	}
 	
+	@SuppressWarnings("unchecked")
+	public <A extends PartialAlignment<String, Transition, Marking>> Classifier trainClassifier2(
+			final PluginContext context, XLog log, Petrinet net, Marking iMarking,
+			int numOfFeatures, Boolean endMarkerEnabled, ArrayList<String> markingClasses_, 
+			IncrementalReplayer<Petrinet, String, Marking, Transition, String, PartialAlignment<String, Transition, Marking>, 
+			IncrementalRevBasedReplayerParametersImpl<Petrinet, String, Transition>> replayer, String relation) throws IOException{
+
+
+
+		if(relation.equals("parent")) {
+			return trainClassifier2(context, log, net, iMarking, numOfFeatures, endMarkerEnabled, markingClasses_, replayer);
+		}else if (!relation.equals("reachable")) {
+			System.out.println("Some unknown marking selection");
+			return null;
+		}else {		
+		
+		replayer.getDataStore().clear();
+
+		XLogInfo logInfo = XLogInfoFactory.createLogInfo(log, new XEventNameClassifier());
+		ArrayList<XEventClass> eventClasses = sortEventClassesByOccurrence(logInfo.getEventClasses());
+
+		ArrayList<String> eventLabels = new ArrayList<>();
+		for(XEventClass eventClass : eventClasses) {
+			eventLabels.add(eventClass.getId());
+		}
+		
+		Collections.sort(eventLabels);
+
+		
+		ArrayList<String> markingClasses = new ArrayList<>();	
+		ArrayList<Instance> instances = new ArrayList<>();
+		HashMap<Pair<String, Marking>, Integer> shortInstances = new HashMap<>();
+
+		for(XTrace trace : log) {
+						
+			for(int x=0; x<trace.size()-numOfFeatures;x++) {					
+
+				double[] valuesMarking = new double[numOfFeatures+1];
+				//double[] valuesCost = new double[datasetMarking.numAttributes()];
+				int index=0;
+				for(int y=x+1; y<=(numOfFeatures+x) ; y++) {
+					if(y<trace.size()) {
+						String label = XConceptExtension.instance().extractName(trace.get(y));
+						valuesMarking[index] = eventLabels.indexOf(label);
+						//valuesCost[index] = datasetMarking.attribute(0).indexOfValue(label);
+						index++;
+					}else {
+						//							markingTrainingSetBody.append("?,");
+						//							costTrainingSetBody.append("?,");
+						System.out.println("I am having problem with number of attributes");
+					}
+				}
+				
+				for(int k=0; k<=(numOfFeatures+x); k++) {
+					if(k<trace.size()) {
+						String caseId = XConceptExtension.instance().extractName(trace);
+						String event = XConceptExtension.instance().extractName(trace.get(k));
+						PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+						if(k==(numOfFeatures+x)) {
+							String toString = null;
+							Marking marking = partialAlignment.getState().getStateInModel(); 
+							toString = "\"" + marking.toString() + "\"";
+							
+							classLabelsMapping.put(toString, marking);
+							
+							if(markingClasses.contains(toString)) {
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}else {
+								markingClasses.add(toString);
+								valuesMarking[numOfFeatures] = markingClasses.indexOf(toString);
+							}
+
+							
+							//valuesCost[datasetMarking.numAttributes()-1] = partialAlignment.getCost();
+						}
+					}	 					
+				}
+				Instance instanceMarking = new DenseInstance(1.0, valuesMarking);
+				//Instance instanceCost = new DenseInstance(1.0, valuesCost);
+				instances.add(instanceMarking);
+				//datasetCost.add(instanceCost);
+				replayer.getDataStore().clear();
+			}
+						
+		
+		}
+		
+		if(endMarkerEnabled) {
+			ArrayList<String> caseEndingEvents = getCaseEndingEvents(net);
+			
+			for(XTrace trace : log) {
+				//here we make less than feature size instances
+				int x;
+				if(trace.size() > numOfFeatures) {
+					x = trace.size()-numOfFeatures+1;
+				}else if (trace.size() <= numOfFeatures && caseEndingEvents.contains(XConceptExtension.instance().extractName(trace.get(trace.size()-1)))) {
+					x = 0;
+				}else {
+					continue;
+				}
+				//int x= trace.size() > numOfFeatures ? trace.size()-numOfFeatures+1 : 0;
+				for(; x<trace.size(); x++) {
+					String instance = "";
+					Marking marking = new Marking();
+					for(int y=x; y<trace.size() ; y++) {
+						if(y<trace.size()-1) {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y)) + ",";
+						}else {
+							instance = instance + XConceptExtension.instance().extractName(trace.get(y));
+						}
+						
+					}
+					
+					for(int k=0; k<trace.size(); k++) {
+						
+						String caseId = XConceptExtension.instance().extractName(trace);
+						String event = XConceptExtension.instance().extractName(trace.get(k));
+						PartialAlignment<String, Transition, Marking> partialAlignment = replayer.processEvent(caseId, event);
+						if(k==trace.size()-1) {	
+							marking = partialAlignment.getState().getStateInModel();
+						}						 					
+					}
+					
+					Pair<String, Marking> shortInstance = Pair.createPair(instance, marking);
+					if(shortInstances.containsKey(shortInstance)) {
+						shortInstances.put(shortInstance, shortInstances.get(shortInstance)+1);
+					}else {
+						shortInstances.put(shortInstance, 1);
+					}
+					replayer.getDataStore().clear();
+				}
+			}
+			
+			ArrayList<String> closedRelations = new ArrayList();
+			
+			//now we refine the short instances on the basis of frequency
+			for(Entry<Pair<String, Marking>, Integer> recOuter : shortInstances.entrySet()) {
+				
+				if(closedRelations.contains(recOuter.getKey().getFirst())){
+					continue;
+				}
+				
+				for(Entry<Pair<String, Marking>, Integer> recInner : shortInstances.entrySet()) {
+					if(recInner.getKey().getFirst().equals(recOuter.getKey().getFirst())) {
+						if(recInner.getValue() > recOuter.getValue()){
+							shortInstanceMarking.put(recInner.getKey().getFirst(), recInner.getKey().getSecond());
+						}else {
+							shortInstanceMarking.put(recOuter.getKey().getFirst(), recOuter.getKey().getSecond());
+						}					
+					}
+				}
+				closedRelations.add(recOuter.getKey().getFirst());
+			}
+			
+			System.out.println(shortInstanceMarking);
+		}
+		
+		//create datasets		
+		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+
+		for(int i=1; i<=numOfFeatures; i++) {
+			attributes.add(new Attribute("event"+i,eventLabels)); 			
+		}
+
+		ArrayList<Attribute> attributesMarking = new ArrayList<Attribute>();
+		attributesMarking.addAll(attributes);
+		attributesMarking.add(new Attribute("class", markingClasses));
+		datasetMarking = new Instances("Train-dataset-marking", attributesMarking, 0);
+
+		attributes.add(new Attribute("class"));
+
+		//datasetCost = new Instances("Train-dataset-cost", attributes, 0);
+
+		testsetMarking = new Instances("Test-dataset-marking", attributesMarking, 0);
+		//testsetCost = new Instances("Test-dataset-cost", attributes, 0);
+//		int sum = 0;
+//		for(XTrace trace : log) {
+//			sum += trace.size();
+//		}
+		//Instances datasetMarkingClone = new Instances(datasetMarking);
+		boolean weighted = true;
+		if(weighted) {
+			HashMap<String, Instance> mapping = new HashMap<>();
+			HashMap<String, Integer> instanceCount = new HashMap<>();
+			
+			for(Instance instance : instances) {
+				//System.out.println(instance.toString());
+				if(instanceCount.containsKey(instance.toString())) {
+					instanceCount.put(instance.toString(), instanceCount.get(instance.toString())+1);
+				}else {
+					instanceCount.put(instance.toString(), 1);
+					mapping.put(instance.toString(), (Instance)instance.copy());
+				}
+			}
+			ArrayList<Instance> weightedInstances = new ArrayList<>();
+			//double totalWeight = 0;
+			for(Entry<String, Integer> entry : instanceCount.entrySet()) {
+				
+				mapping.get(entry.getKey()).setWeight(entry.getValue());
+				weightedInstances.add(mapping.get(entry.getKey()));
+				//totalWeight += entry.getValue();
+			}
+			datasetMarking.addAll(weightedInstances);
+			//System.out.println(totalWeight);
+			
+		}else {
+			datasetMarking.addAll(instances);
+		}
+		
+		datasetMarking.setClassIndex(datasetMarking.numAttributes()-1);
+		
+		try {
+			classifier.buildClassifier(datasetMarking);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		//datasetMarking.removeAll(instances);
+		return classifier;		
+		}
 		
 		
 	}
@@ -794,5 +1468,42 @@ public class WekaDataSetsCreation implements Serializable {
 			totalCost += costPerTrace.get(t);
 		}
 		return totalCost;
+	}
+	
+	public void dummyTestSet(Instances dataset, Instances testset, int numOfFeatures, int maxCasesToStore, String storageFolder , int fold, String type) {
+		
+		
+		HashSet<Instance> temp = new HashSet<>();
+		ArrayList<String> entries = new ArrayList<>();
+		
+		for(Instance inst : dataset) {
+			inst.setClassMissing();
+			if(entries.contains(inst.toString())) {
+				continue;
+			}else {
+				entries.add(inst.toString());
+				temp.add(inst);
+			}
+			
+		
+		}
+		
+		testset.addAll(temp);
+		testset.setClassIndex(testset.numAttributes()-1);
+		
+		//saveDataSet(testset, numOfFeatures, 1000000, storageFolder , 0, "test");
+		for(Instance testInst : testset) {
+			double classValue;
+			try {
+				classValue = classifier.classifyInstance(testInst);
+				Marking predictedMarking = getMarking(testInst.classAttribute().value((int) classValue));
+				testInst.setClassValue(classValue);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		System.out.println(testset);
 	}
 }

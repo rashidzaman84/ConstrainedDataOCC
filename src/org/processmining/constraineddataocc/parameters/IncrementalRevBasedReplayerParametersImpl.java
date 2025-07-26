@@ -5,6 +5,24 @@ public class IncrementalRevBasedReplayerParametersImpl<M, L, T> extends /*org.pr
 	private int lookBackWindow = Integer.MAX_VALUE;
 	private boolean lookBackWindowTypeEvent = false;
 	private int maxCasesToStore = Integer.MAX_VALUE;
+	private String storeType = null;
+	private String forgettingCriteria = null;
+
+	public String getForgettingCriteria() {
+		return forgettingCriteria;
+	}
+
+	public void setForgettingCriteria(String forgettingCriteria) {
+		this.forgettingCriteria = forgettingCriteria;
+	}
+
+	public String getStoreType() {
+		return storeType;
+	}
+
+	public void setStoreType(String storeType) {
+		this.storeType = storeType;
+	}
 
 	public int getMaxCasesToStore() {
 		return maxCasesToStore;

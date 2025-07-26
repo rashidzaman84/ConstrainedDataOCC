@@ -57,6 +57,10 @@ public class IncrementalRevBasedReplayerImpl5<M, C, S, T, L, A extends PartialAl
 		this.forgottenCosts = new HashMap<>();
 		this.eventsCategorisation = new HashMap<>();
 	}
+	
+	public Object getObject() {
+		return null;
+	}
 
 	public Map<C, A> getDataStore() {
 		return dataStore;

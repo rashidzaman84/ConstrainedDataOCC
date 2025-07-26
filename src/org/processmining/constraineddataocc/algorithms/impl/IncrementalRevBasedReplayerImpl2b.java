@@ -57,6 +57,10 @@ implements IncrementalReplayer<M, C, S, T, L, A, P> {
 		//this.markingPlusCost = new HashMap<>();
 	}
 
+	public Object getObject() {
+		return null;
+	}
+	
 	public Map<C, A> getDataStore() {
 		return dataStore;
 	}

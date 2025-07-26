@@ -233,6 +233,8 @@ public interface IncrementalReplayer<M, C, S, T, L, A extends PartialAlignment<L
 	}
 
 	Map<C, A> getDataStore();
+	
+	Object getObject();
 
 	S getFinalStateInModel();
 

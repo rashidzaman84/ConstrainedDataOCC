@@ -9,94 +9,115 @@ import java.util.Map.Entry;
 
 import org.javatuples.Triplet;
 
-public class PublishResults {
+public class PublishStates_Temp {
 
 	public static void writeToFilesCC(HashMap<String, ResultsCollection2> globalResults, String fileName, String classifierChoice, String outputFolderPath) {
 
 		//-------------- CC information
 
-				StringBuilder stringBuilderHeader = new StringBuilder();
-				stringBuilderHeader.append("Case,");
+//				StringBuilder stringBuilderHeader = new StringBuilder();
+//				stringBuilderHeader.append("Case,");
+//
+//				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+//					stringBuilderHeader.append(entryOuter.getKey() + ",");
+//				}		
 
-				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
-					stringBuilderHeader.append(entryOuter.getKey() + ",");
-				}		
-
-				StringBuilder stringBuilderCosts = new StringBuilder();
-
+//				StringBuilder stringBuilderCosts = new StringBuilder();
+//
 				boolean first = true;
-
-				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
-					if(first) {
-						for(Entry<String, Double> entryInner : entryOuter.getValue().costRecords.entrySet()) {
-							String caseId = entryInner.getKey();
-							stringBuilderCosts.append(caseId + ",");				
-
-							for(Entry<String, ResultsCollection2> records : globalResults.entrySet()) {
-								stringBuilderCosts.append(records.getValue().costRecords.get(caseId) + ",");						
-							}
-							//stringBuilderCosts.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
-							//stringBuilderCosts.append(entryOuter.getValue().sumOfEternalPrematureCases);
-							stringBuilderCosts.append("\n");
-						}
-						first=false;				
-					}			
-				}	
-
+//
+//				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+//					if(first) {
+//						for(Entry<String, Double> entryInner : entryOuter.getValue().costRecords.entrySet()) {
+//							String caseId = entryInner.getKey();
+//							stringBuilderCosts.append(caseId + ",");				
+//
+//							for(Entry<String, ResultsCollection2> records : globalResults.entrySet()) {
+//								stringBuilderCosts.append(records.getValue().costRecords.get(caseId) + ",");						
+//							}
+//							//stringBuilderCosts.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
+//							//stringBuilderCosts.append(entryOuter.getValue().sumOfEternalPrematureCases);
+//							stringBuilderCosts.append("\n");
+//						}
+//						first=false;				
+//					}			
+//				}	
+//
 				String outputFilePath = outputFolderPath +  fileName + "_CC.csv";
 				File file = new File(outputFilePath);
-
-				BufferedWriter bf = null;
-
-				if(file.exists() && !file.isDirectory()){
-					try {
-						bf = new BufferedWriter(new FileWriter(file, false));
-						bf.newLine();
-						bf.write(stringBuilderHeader.toString());
-						bf.write(stringBuilderCosts.toString());
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}else {
-					try {
-						bf = new BufferedWriter(new FileWriter(file));
-						bf.write(stringBuilderHeader.toString());
-						bf.newLine();
-						bf.write(stringBuilderCosts.toString());
-
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-
-				try {			
-					bf.flush();
-					bf.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+//
+//				BufferedWriter bf = null;
+//
+//				if(file.exists() && !file.isDirectory()){
+//					try {
+//						bf = new BufferedWriter(new FileWriter(file, false));
+//						bf.newLine();
+//						bf.write(stringBuilderHeader.toString());
+//						bf.write(stringBuilderCosts.toString());
+//					} catch (IOException e) {
+//						// TODO Auto-generated catch block
+//						e.printStackTrace();
+//					}
+//				}else {
+//					try {
+//						bf = new BufferedWriter(new FileWriter(file));
+//						bf.write(stringBuilderHeader.toString());
+//						bf.newLine();
+//						bf.write(stringBuilderCosts.toString());
+//
+//					} catch (IOException e) {
+//						// TODO Auto-generated catch block
+//						e.printStackTrace();
+//					}
+//				}
+//
+//				try {			
+//					bf.flush();
+//					bf.close();
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
 
 				//-------------- States information
 
 				StringBuilder stringBuilderStates = new StringBuilder();
 				//System.out.println(" W and N combination, Max. states, Forgotten Premature, Forgotten Eternal");
 
+				stringBuilderStates.append("event,");
 				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
 					stringBuilderStates.append(entryOuter.getKey() + ",");
 				}
 
 				stringBuilderStates.append("\n");
+				
+				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+					if(first) {
+						
+						for(int i=0; i<entryOuter.getValue().foldStates.size();i++) {
+							
+							stringBuilderStates.append(i+1 + ",");				
+
+							for(Entry<String, ResultsCollection2> records : globalResults.entrySet()) {
+								stringBuilderStates.append(records.getValue().foldStates.get(i) + ",");						
+							}
+							//stringBuilderCosts.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
+							//stringBuilderCosts.append(entryOuter.getValue().sumOfEternalPrematureCases);
+							stringBuilderStates.append("\n");
+						}
+						first=false;				
+					}			
+				}
+				
+				
 
 				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
-					stringBuilderStates.append(entryOuter.getValue().maxStates + ",");
+					System.out.print(entryOuter.getValue().maxStates + ",");
 				}
 
-				System.out.println(stringBuilderStates.toString());	
+				//System.out.println(stringBuilderStates.toString());	
 
-				outputFilePath = outputFolderPath + fileName + "_States.csv";
+				outputFilePath = outputFolderPath + fileName + "_allStates.csv";
 				file = new File(outputFilePath);
 				BufferedWriter bf2 = null;
 
@@ -110,33 +131,33 @@ public class PublishResults {
 					e.printStackTrace();
 				}
 
-				//-------------- additional information
-
-				StringBuilder stringBuilderCasesMeta = new StringBuilder();
-				//System.out.println(" W and N combination, Max. states, Forgotten Premature, Forgotten Eternal");
-				stringBuilderCasesMeta.append("W and N combination, Forgotten Premature, Forgotten Eternal");
-				stringBuilderCasesMeta.append("\n");
-				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
-					stringBuilderCasesMeta.append(entryOuter.getKey() + ",");
-					stringBuilderCasesMeta.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
-					stringBuilderCasesMeta.append(entryOuter.getValue().sumOfEternalPrematureCases + "\n");
-				}
-
-				System.out.println(stringBuilderCasesMeta.toString());	
-
-				outputFilePath = outputFolderPath + fileName + "_meta.csv";
-				file = new File(outputFilePath);
-				BufferedWriter bf3 = null;
-
-				try {	
-					bf3 = new BufferedWriter(new FileWriter(file, true));
-					bf3.write(stringBuilderCasesMeta.toString());
-					bf3.flush();
-					bf3.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}		
+//				//-------------- additional information
+//
+//				StringBuilder stringBuilderCasesMeta = new StringBuilder();
+//				//System.out.println(" W and N combination, Max. states, Forgotten Premature, Forgotten Eternal");
+//				stringBuilderCasesMeta.append("W and N combination, Forgotten Premature, Forgotten Eternal");
+//				stringBuilderCasesMeta.append("\n");
+//				for(Entry<String, ResultsCollection2> entryOuter : globalResults.entrySet()) {
+//					stringBuilderCasesMeta.append(entryOuter.getKey() + ",");
+//					stringBuilderCasesMeta.append(entryOuter.getValue().sumOfForgottenPrematureCases + ",");
+//					stringBuilderCasesMeta.append(entryOuter.getValue().sumOfEternalPrematureCases + "\n");
+//				}
+//
+//				System.out.println(stringBuilderCasesMeta.toString());	
+//
+//				outputFilePath = outputFolderPath + fileName + "_meta.csv";
+//				file = new File(outputFilePath);
+//				BufferedWriter bf3 = null;
+//
+//				try {	
+//					bf3 = new BufferedWriter(new FileWriter(file, true));
+//					bf3.write(stringBuilderCasesMeta.toString());
+//					bf3.flush();
+//					bf3.close();
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}		
 	}
 	
 	public static void writeToFilesCC_(HashMap<String, ResultsCollection2> globalResults, String fileName, String classifierChoice, String outputFolderPath) {

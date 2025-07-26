@@ -36,6 +36,7 @@ public class ForgettingCases {
 	
 	public static <A> String selectCaseToBeForgotten(Map<String, A> datastore, String forgettingPolicy) {
 		
+
 		if(forgettingPolicy.equals("longest non-conf")) {
 			int maxTraceLength = Integer.MIN_VALUE;
 			String caseIdToBeForgotten = null;
@@ -55,6 +56,17 @@ public class ForgettingCases {
 			}
 			
 			return caseIdToBeForgotten;
+		}else if(forgettingPolicy.equals("LRU")) {
+			int count = 1;
+			 
+	        for (Map.Entry<String, A> item : datastore.entrySet()) {
+	            if (count == 1) {	              
+	                return item.getKey();
+	            }
+	            count++;
+	        }
+	        System.out.println("I am returning a null as a case to be forgotten in LRU option");
+	        return null;
 		}else{
 			//System.out.println("The forgetting policy is: SHORTEST-Non-COnformant");
 			return selectCaseToBeForgotten(datastore);
