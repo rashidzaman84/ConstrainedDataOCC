@@ -1,5 +1,21 @@
 # Constrained-Data Online Conformance Checking
-This prototype implementation is related to the Constrained-Data prefix-alignments based Online Conformance Checking (OCC) approaches. The provided prototype implementation is dependent on the prefix-alignments based Online Conformance package of [[1]](#1) which uses the A<sup>*</sup> algorithm for shortest path search based
+
+<p>
+  <a href="https://www.sciencedirect.com/science/article/pii/S0306437923000649"><img src="http://img.shields.io/badge/Paper-PDF-brightgreen.svg"></a>
+
+</p>
+
+Implementation of:
+
+- [Conformance checking of process event streams with constraints on data retention](https://www.sciencedirect.com/science/article/pii/S0306437923000649). R Zaman, M Hassani, BF van Dongen - Information Systems, 2023
+
+This prototype implementation is related to the Constrained-Data prefix-alignments based Online Conformance Checking (OCC) approaches. The proposed approach delimits the memory utilization in online conformance checking systems through: (i) frugally partially or fully forgetting cases, with or without retaining the state of the case, and (ii) recovering or predicting the previous state of the forgotten trace, respectively, and resuming the conformance computation.  
+
+![](Overview.jpg)
+
+
+
+The provided prototype implementation is dependent on the prefix-alignments based [Online Conformance package](https://link.springer.com/content/pdf/10.1007/s41060-017-0078-6.pdf) which uses the A<sup>*</sup> algorithm for shortest path search based
 prefix-alignment computation. This parent package requires a Petri net process model, its initial marking, and its final marking. Additionally, our approaches require the following additional input parameters:
 - The Bounded Cases stateful approach requires a suitable case limit n.
 - The bounded Cases and States, which is also a stateful approach, requires a state limit n in addition to a case limit n.
@@ -19,9 +35,21 @@ prefix-alignment computation. This parent package requires a Petri net process m
  - Results are locally stored as csv files on the path provided in the parameters.
 
 
-## References
 
-<a id="1">[1]</a> 
-Sebastiaan J van Zelst, Alfredo Bolt, Marwan Hassani, Boudewijn F van Dongen, and Wil MP van der Aalst. (2019).
-Online conformance checking: relating event streams to process models using prefix-alignments.
-International Journal of Data Science and Analytics 8, 3 (2019), 269–284.
+## Citation
+
+If you use this code for your research, please consider citing our paper.
+
+```bibtex
+@article{ZAMAN2023102228,
+title = {Conformance checking of process event streams with constraints on data retention},
+journal = {Information Systems},
+volume = {117},
+pages = {102228},
+year = {2023},
+issn = {0306-4379},
+doi = {https://doi.org/10.1016/j.is.2023.102228},
+url = {https://www.sciencedirect.com/science/article/pii/S0306437923000649},
+author = {Rashid Zaman and Marwan Hassani and Boudewijn F. {van Dongen}},
+keywords = {Process mining, Event stream mining, Online conformance checking, Prefix alignments, Memory-aware conformance checking}
+}
